@@ -7,6 +7,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Document(collection = "users")
+/**
+ * Persistent user document stored in MongoDB.
+ * Contains basic profile information and a list of `OrderSummary` entries
+ * that may be populated by the application service.
+ */
 public class User {
     @Id
     private String id;

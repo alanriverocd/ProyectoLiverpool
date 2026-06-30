@@ -2,6 +2,7 @@ package com.liverpool.exam.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.liverpool.exam.ports.OrderPort;
 import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -9,16 +10,23 @@ import org.springframework.web.client.RestTemplate;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Adapter/service that implements the OrderPort and provides
+ * external pedidos/items access and fuzzy-search functionality.
+ */
 @Service
-public class OrderService {
-    private final RestTemplate rest = new RestTemplate();
+public class OrderService implements OrderPort {
+    private final RestTemplate rest;
     private final ObjectMapper mapper = new ObjectMapper();
 
     private static final String PEDIDOS_URL = "https://6994a4eab081bc23e9c0f61e.mockapi.io/api/v1/pedidos";
     private static final String ITEMS_URL = "https://6994a4eab081bc23e9c0f61e.mockapi.io/api/v1/items";
+
+    public OrderService(RestTemplate rest) {
+        this.rest = rest;
+    }
 
     public List<JsonNode> fetchPedidos() {
         ResponseEntity<String> r = rest.getForEntity(PEDIDOS_URL, String.class);
@@ -29,6 +37,7 @@ public class OrderService {
         }
     }
 
+    @Override
     public JsonNode[] fetchPedidosRaw() {
         try {
             String json = rest.getForObject(PEDIDOS_URL, String.class);
@@ -38,6 +47,7 @@ public class OrderService {
         }
     }
 
+    @Override
     public JsonNode[] fetchItemsRaw() {
         try {
             String json = rest.getForObject(ITEMS_URL, String.class);
@@ -63,6 +73,7 @@ public class OrderService {
         return dist <= threshold;
     }
 
+    @Override
     public List<JsonNode> search(String q) {
         List<JsonNode> out = new ArrayList<>();
         JsonNode[] pedidos = fetchPedidosRaw();

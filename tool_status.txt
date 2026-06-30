@@ -1,0 +1,5 @@
+﻿Timestamp: 2026-06-30T14:53:44.4572565-06:00
+--- gh ---
+gh no instalado
+--- flyctl ---
+flyctl no instalado

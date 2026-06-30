@@ -2,10 +2,17 @@ package com.liverpool.exam.controller;
 
 import com.liverpool.exam.model.OrderSummary;
 import com.liverpool.exam.model.User;
-import com.liverpool.exam.service.UserService;
+import com.liverpool.exam.ports.UserPort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
 import java.util.List;
@@ -14,9 +21,13 @@ import java.util.List;
 @RequestMapping("/api/v1/users")
 @Validated
 public class UserController {
-    private final UserService svc;
+    /**
+     * REST adapter for user operations. Acts as an entry-point adapter (controller)
+     * and delegates business work to the application port `UserPort`.
+     */
+    private final UserPort svc;
 
-    public UserController(UserService svc) { this.svc = svc; }
+    public UserController(UserPort svc) { this.svc = svc; }
 
     @PostMapping
     public ResponseEntity<User> create(@Valid @RequestBody User u) {
