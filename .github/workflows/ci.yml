@@ -16,6 +16,16 @@ jobs:
   build:
     name: Build, Test & Javadoc
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongo --eval 'db.adminCommand(\"ping\")' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,7 +44,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Wait for MongoDB
+        run: |
+          echo "Waiting for MongoDB on localhost:27017..."
+          for i in $(seq 1 60); do
+            if nc -z localhost 27017; then
+              echo "MongoDB is up"
+              break
+            fi
+            sleep 1
+          done
+
       - name: Build, run tests and CheckStyle
+        env:
+          SPRING_DATA_MONGODB_URI: "mongodb://localhost:27017"
         run: mvn -B -U verify
 
       - name: Generate Javadoc
