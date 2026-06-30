@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ '**' ]
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Push Docker image to GHCR (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  build:
+    name: Build, Test & Javadoc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Cache Maven local repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build, run tests and CheckStyle
+        run: mvn -B -U verify
+
+      - name: Generate Javadoc
+        run: mvn javadoc:javadoc
+
+      - name: Upload Javadoc artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: javadoc
+          path: target/site/apidocs
+
+  docker:
+    name: Build & Push Docker image (GHCR)
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && github.event.inputs.push == 'true' ||
+      github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/exam-backend:latest
+            ghcr.io/${{ github.repository_owner }}/exam-backend:${{ github.sha }}
+
+    deploy:
+      name: Deploy to Fly.io
+      needs: docker
+      runs-on: ubuntu-latest
+      if: |
+        github.event_name == 'workflow_dispatch' && github.event.inputs.push == 'true' ||
+        github.ref == 'refs/heads/main'
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - name: Install flyctl
+          uses: superfly/flyctl-actions/setup-flyctl@v1
+          with:
+            version: 'latest'
+
+        - name: Authenticate with Fly
+          env:
+            FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          run: |
+            flyctl auth token $FLY_API_TOKEN
+
+        - name: Deploy image to Fly.io
+          env:
+            IMAGE: ghcr.io/${{ github.repository_owner }}/exam-backend:latest
+            FLY_APP: ${{ secrets.FLY_APP_NAME }}
+          run: |
+            flyctl deploy --image $IMAGE --app $FLY_APP --remote-only
